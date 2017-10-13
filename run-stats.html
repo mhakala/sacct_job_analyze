@@ -1,0 +1,149 @@
+<!doctype html>
+<html class="no-js" lang="">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title>Sacct run info</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+
+            td {
+                font-family:monospace;
+                font-size:14px;
+                padding: 10px;
+                border-right:1px solid black;
+                border-bottom:1px solid black;
+            }
+
+            .table-header td {
+                cursor: pointer;
+                -webkit-touch-callout: none; /* iOS Safari */
+                -webkit-user-select: none; /* Safari */
+                -khtml-user-select: none; /* Konqueror HTML */
+                -moz-user-select: none; /* Firefox */
+                -ms-user-select: none; /* Internet Explorer/Edge */
+                user-select: none; /* Non-prefixed version, currently
+                                      supported by Chrome and Opera */
+            }
+        </style>
+    </head>
+    <body ng-app="triton" ng-controller="test">
+        <!--[if lte IE 9]>
+            <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
+        <![endif]-->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.6.5/angular.min.js"></script>
+        <script>
+
+            angular.module('triton', [])
+            .controller('test', function($scope, $http) {
+
+                $scope.data = [];
+
+                $http.get('result.csv')
+                .then(function(res) {
+                    var dataStr = res.data;
+
+                    // Split data into string rows
+                    var rowsStr = dataStr.trim().split('\n');
+                    // Split header line into an array
+                    var keys = rowsStr[0].split(';');
+                    // Map data into more readable objects
+                    var data = rowsStr.slice(1).map(function(rowStr) {
+                        var dataObj = {};
+                        var row = rowStr.split(';')
+                        // Assign object key-value-pairs
+                        for (idx in keys) {
+                        	// Round the percentages
+                            if (keys[idx][0] == "%") {
+                            	row[idx] = Number(row[idx]).toFixed(2)
+                            }
+                            dataObj[keys[idx]] = row[idx]
+                        }
+                        return dataObj;
+                    })
+
+                    function getPercentageCellColor(num) {
+                    	if (num > 50) { return "rgba(255, 0, 0, 0.3)" }
+                    	else if (num > 20) { return "rgba(255, 255, 0, 0.3)" }
+                    	else return "";
+                    }
+
+                    // Define actual columns; key is the key in data, label is displayed header title
+                    // colorF defines the background color of the cell (if any)
+                    $scope.cols = [
+                        {
+                            key: 'User',
+                            label: 'User'
+                        },
+                        {
+                            key: 'NJobs',
+                            label: 'Number of jobs'
+                        },
+                        {
+                            key: 'UniqueJobs',
+                            label: 'Number of unique jobs'
+                        },
+                        {
+                            key: '%failed',
+                            label: 'Failed (%)',
+                            colorF: getPercentageCellColor
+                        },
+                        {
+                            key: '%low_mem_util_warn',
+                            label: 'Low memory (%)',
+                            colorF: getPercentageCellColor
+                        },
+                        {
+                            key: '%high_mem_util_warn',
+                            label: 'High memory (%)',
+                            colorF: getPercentageCellColor
+                        },
+                        {
+                            key: '%poor_cpu_util',
+                            label: 'Poor CPU util (%)',
+                            colorF: getPercentageCellColor
+                        },
+                        {
+                            key: '%timeout',
+                            label: 'Timeout (%)',
+                            colorF: getPercentageCellColor
+                        },
+                        {
+                            key: '%close2timeout',
+                            label: 'Close to timeout (%)',
+                            colorF: getPercentageCellColor
+                        },
+                        {
+                            key: '%jobs_below_15min',
+                            label: 'Jobs below 15min (%)',
+                            colorF: getPercentageCellColor
+                        }
+                    ]
+                    $scope.rows = data;
+
+                    $scope.sortBy = function(key) {
+                    	// If same header clicked twice in a row, reverse sort
+                        if (key === $scope.sortKey) { $scope.reverse = !$scope.reverse }
+                        else { $scope.reverse = false }
+                        $scope.sortKey = key;
+
+                    	// Do the actual sorting
+                        $scope.rows.sort(function(a, b) {
+                            return ( $scope.reverse ? b[key] - a[key] : a[key] - b[key] );
+                        });
+                    }
+                })
+            })
+        </script>
+
+        <table>
+            <tr class="table-header">
+                <td ng-repeat="col in cols" ng-click="sortBy(col.key)">{{::col.label}}</td>
+            </tr>
+            <tr ng-repeat="row in rows">
+                <td ng-style="::{'background-color':( col.colorF ? col.colorF(row[col.key]) : '' )}" ng-repeat="col in cols">{{col.valueFunc ? col.valueFunc(row[col.key]) : row[col.key]}}</td>
+            </tr>
+        </table>
+    </body>
+</html>
